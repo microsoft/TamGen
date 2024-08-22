@@ -1,0 +1,2 @@
+an example of wrong mmCIF file.
+some random strings
