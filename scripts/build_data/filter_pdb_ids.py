@@ -1,5 +1,5 @@
-#! /usr/bin/env python
-# -*- coding: utf-8 -*-
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
 
 """Filter exist dataset by PDB ID list."""
 

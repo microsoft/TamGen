@@ -1,5 +1,5 @@
-#! /usr/bin/env python
-# -*- coding: utf-8 -*-
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
 
 """Build dataset from PDB ID list using the residue ids(indexes) of the binding site of each pdb.
 

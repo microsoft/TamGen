@@ -2,14 +2,13 @@
 
 # TamGen
 
-Target-aware Molecule Generation for Drug Design Using a Chemical Language Model
+TamGen: Target-aware Molecule Generation for Drug Design Using a Chemical Language Model
 
 # Introduction
-We present TamGen, a generative method for structure-based drug design. Given a protein binding site, TamGen generates small molecule compounds optimized to bind to that specific pocket.
 
+This is the implementation of the paper `TamGen: Target-aware Molecule Generation for Drug Design Using a Chemical Language Model`. 
 
-
-The code is based on: [fairseq-v0.8.0](https://github.com/facebookresearch/fairseq)
+Our implementation is built on [fairseq-v0.8.0](https://github.com/facebookresearch/fairseq)
 
 
 
@@ -71,7 +70,7 @@ You can build your customized dataset through the following methods:
 
 
 # Model
-The checkpoint can be found in the provided url from the paper, which is `TamGen.ckpt.tar.gz `. You should run `tar xzf TamGen.ckpt.tar.gz` to uncompress it. After uncompression, you will get two folders: `checkpoints` and `gpt_model`. Please place them under the folder `TamGen/`. The structures of the two folders are shown below:
+The checkpoint can be found in `https://doi.org/10.5281/zenodo.13751391`. Please download `checkpoints.zip` & `gpt_model.zip` and uncompress them. After that, you will get two folders: `checkpoints` and `gpt_model`. Please place them under the folder `TamGen/`. The structures of the two folders are shown below:
 ```bash
 checkpoints/
 ├── README.MD
@@ -121,3 +120,27 @@ worker = TamGenDemo(
 - Specify the GPU id
 - Download the checkpoint and place it into "checkpoints/crossdock_pdb_A10/checkpoint_best.pt" or your specificied position
 - Download the pre-trained GPT model and put it into the folder `gpt_model`
+
+
+## Contributing
+
+This project welcomes contributions and suggestions.  Most contributions require you to agree to a
+Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
+the rights to use your contribution. For details, visit https://cla.opensource.microsoft.com.
+
+When you submit a pull request, a CLA bot will automatically determine whether you need to provide
+a CLA and decorate the PR appropriately (e.g., status check, comment). Simply follow the instructions
+provided by the bot. You will only need to do this once across all repos using our CLA.
+
+This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
+For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
+contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
+
+## Trademarks
+
+This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft 
+trademarks or logos is subject to and must follow 
+[Microsoft's Trademark & Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks/usage/general).
+Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship.
+Any use of third-party trademarks or logos are subject to those third-party's policies.
+

@@ -130,8 +130,8 @@ if $RunTrain; then
     --lr-scheduler "inverse_sqrt_es" \
     --weight-decay 1e-4 \
     --lr $LR \
-    --warmup-updates 1000 \
-    --max-tokens 8192 \
+    --warmup-updates 4000 \
+    --max-tokens 1024 \
     --encoder-layers $Layers \
     --encoder-embed-dim $EmbedDims \
     --encoder-ffn-embed-dim $((4*EmbedDims)) \
@@ -145,7 +145,7 @@ if $RunTrain; then
     --move-to-origin \
     --random-rotation \
     --max-epoch 200 \
-    --update-freq 1 \
+    --update-freq 32 \
     --save-dir $savedir \
     --train-subset $trainset \
     --valid-subset $validset \
@@ -153,6 +153,9 @@ if $RunTrain; then
     --use-src-coord \
     --pretrained-gpt-checkpoint \
     gpt_model/checkpoint_best.pt \
+    --tensorboard-logdir $savedir/tensorbord_logs \
+    --log-interval 10 \
+    --log-format simple \
     ${ExtraArgs[@]}| tee -a $savedir/log
     set +x
 fi

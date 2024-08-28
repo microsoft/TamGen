@@ -1,4 +1,5 @@
-#! /usr/bin/python
-# -*- coding: utf-8 -*-
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 from .translation_coord import *
 

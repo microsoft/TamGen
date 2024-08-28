@@ -3,7 +3,7 @@
 
 """Parse templates / PDB files.
 
-Copied from AlphaFold2 project `alphafold/data/templates.py`."""
+Code credit to AlphaFold2 project `alphafold/data/templates.py`."""
 
 from typing import Dict, Tuple
 

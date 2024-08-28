@@ -3,7 +3,7 @@
 
 """Parse the mmCIF file format into *AlphaFold2-compatible data structure*.
 
-Copied from AlphaFold2 project `alphafold/data/mmcif_parsing.py`."""
+Code credit to AlphaFold2 project `alphafold/data/mmcif_parsing.py`."""
 
 import collections
 import dataclasses

@@ -3,7 +3,7 @@
 
 """Data transforms on template features.
 
-Copied from AlphaFold2 project `alphafold/model/tf/data_transforms.py`."""
+Code credit to AlphaFold2 project `alphafold/model/tf/data_transforms.py`."""
 
 import functools
 from typing import Dict, List

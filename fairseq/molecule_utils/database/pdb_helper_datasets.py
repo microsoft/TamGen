@@ -1,5 +1,5 @@
-#! /usr/bin/python
-# -*- coding: utf-8 -*-
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
 
 """PDB helper datasets (PdbSws and PdbCCD)."""
 
@@ -36,7 +36,7 @@ def get_pdb_ccd_info(pdb_ccd_path: Path = None) -> Dict[str, CcdInfo]:
     if not basic_info_file.exists():
         error_msg = (
             f'PDB CCD dataset file not found. '
-            f'Please copy it from /blob/v-yaf/fairseq-data-bin/tgt2drug/orig/PdbCCD/basic_info.csv '
+            f'Please copy it from remote server '
             f'to {basic_info_file}.')
         raise RuntimeError(error_msg)
 
