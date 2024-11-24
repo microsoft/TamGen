@@ -122,6 +122,29 @@ worker = TamGenDemo(
 - Download the pre-trained GPT model and put it into the folder `gpt_model`
 
 
+## Citation
+Please kindly cite this paper if you use the code or you find TamGen is helpful for your work
+```
+@Article{Wu2024TamGen,
+author={Wu, Kehan and Xia, Yingce and Deng, Pan and Liu, Renhe
+and Zhang, Yuan and Guo, Han and Cui, Yumeng and Pei, Qizhi and Wu, Lijun
+and Xie, Shufang and Chen, Si and Lu, Xi and Hu, Song and Wu, Jinzhi
+and Chan, Chi-Kin and Chen, Shawn and Zhou, Liangliang and Yu, Nenghai and Chen, Enhong
+and Liu, Haiguang and Guo, Jinjiang and Qin, Tao and Liu, Tie-Yan},
+title={TamGen: drug design with target-aware molecule generation through a chemical language model},
+journal={Nature Communications},
+year={2024},
+month={Oct},
+day={29},
+volume={15},
+number={1},
+pages={9360},
+issn={2041-1723},
+doi={10.1038/s41467-024-53632-4},
+url={https://doi.org/10.1038/s41467-024-53632-4}
+}
+```
+
 ## Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
