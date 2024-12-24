@@ -1,56 +1,25 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-import torch
-import os
+import logging
+import random
 from glob import glob
+from os.path import dirname as parent
+from pathlib import Path
 
-from fairseq import bleu, checkpoint_utils, options, progress_bar, tasks, utils
-from fairseq.meters import StopwatchMeter, TimeMeter
+import numpy as np
+import torch
+from fairseq import checkpoint_utils, options, progress_bar, tasks, utils
+from fairseq.molecule_utils.database.caching_utils import get_cache
+from fairseq.molecule_utils.external.fairseq_dataset_build_utils import process_one_pdb, dump_data
+from fairseq.molecule_utils import config
+from fy_common_ext.io import csv_reader
 from rdkit import Chem, RDLogger
 from tqdm import tqdm
 
 RDLogger.DisableLog('rdApp.*')
 
 OVERRIDES = ['sample_beta', 'gen_coord_noise', 'gen_rot', 'gen_vae']
-
-
-def prepare_pdb_data(pdb_id, ligand_inchi=None, DemoDataFolder="TamGen_Demo_Data", thr=10):
-    out_split = pdb_id.lower()
-    FF = glob(f"{DemoDataFolder}/*")
-    for ff in FF:
-        if f"gen_{out_split}" in ff:
-            print(f"{pdb_id} is downloaded")
-            return
-    
-    os.system(f"mkdir -p {DemoDataFolder}")
-    if ligand_inchi is None:
-        with open("tmp_pdb.csv", "w") as fw:
-            print("pdb_id", file=fw)
-            print(f"{pdb_id}", file=fw)
-    else:
-        with open("tmp_pdb.csv", "w") as fw:
-            print("pdb_id,ligand_inchi", file=fw)
-            print(f"{pdb_id},{ligand_inchi}", file=fw)
-    
-    os.system(f"python scripts/build_data/prepare_pdb_ids.py tmp_pdb.csv gen_{out_split} -o {DemoDataFolder} -t {thr}")
-    os.system(r"rm tmp_pdb.csv")
-
-
-def prepare_pdb_data_center(pdb_id, scaffold_file=None, DemoDataFolder="TamGen_Demo_Data", thr=10):
-    out_split = pdb_id.lower()
-    FF = glob(f"{DemoDataFolder}/*")
-    for ff in FF:
-        if f"gen_{out_split}" in ff:
-            print(f"{pdb_id} is downloaded")
-            return
-
-    with open("tmp_pdb.csv", "w") as fw:
-        print("pdb_id,ligand_inchi", file=fw)
-        print(f"{pdb_id},{ligand_inchi}", file=fw)
-    
-    os.system(f"python scripts/build_data/prepare_pdb_ids.py tmp_pdb.csv gen_{out_split} -o {DemoDataFolder} -t {thr}")
-    os.system(r"rm tmp_pdb.csv")
 
 
 def filter_generated_cmpd(smi):
@@ -69,14 +38,20 @@ def filter_generated_cmpd(smi):
 
 class TamGenDemo:
     def __init__(
-            self, 
-            ckpt="checkpoints/crossdock_pdb_A10/checkpoint_best.pt", 
-            data="TamGent_Demo_Data",
-            use_conditional=True
-            ):
-        
+        self,
+        ckpt="checkpoints/crossdock_pdb_A10/checkpoint_best.pt",
+        gpt_ckpt="gpt_model/checkpoint_best.pt",
+        data_dir="TamGen_Demo_Data",
+        database_dir="database",
+        use_conditional=True,
+    ):
+
+        self.data_dir = data_dir
+
+        config.set_dataset_root(Path(database_dir))
+
         input_args = [
-            data,
+            data_dir,
             "-s", "tg", "-t", "m1", "--task", "translation_coord",
             "--path",  ckpt,
             "--gen-subset", "gen_8fln", "--beam", "20", "--nbest", "20",
@@ -119,6 +94,7 @@ class TamGenDemo:
         overrides = eval(args.model_overrides)
         for name in OVERRIDES:
             overrides[name] = getattr(args, name, None)
+        overrides["pretrained_gpt_checkpoint"] = gpt_ckpt
 
         # Load ensemble
         print('| loading model(s) from {}'.format(args.path))
@@ -145,7 +121,51 @@ class TamGenDemo:
 
         self.generator = self.task.build_generator(args)
         self.has_target = True
+
+    def prepare_pdb_data(self, pdb_id, ligand_inchi=None, thr=10):
+        out_split = pdb_id.lower()
+        FF = glob(f"{self.data_dir}/*")
+        for ff in FF:
+            if f"gen_{out_split}" in ff:
+                print(f"{pdb_id} is downloaded")
+                return
+
+        tmp_file = f"{self.data_dir}/tmp_{pdb_id}.csv"
         
+        if ligand_inchi is None:
+            with open(tmp_file, "w") as fw:
+                print("pdb_id", file=fw)
+                print(f"{pdb_id}", file=fw)
+        else:
+            with open(tmp_file, "w") as fw:
+                print("pdb_id,ligand_inchi", file=fw)
+                print(f"{pdb_id},{ligand_inchi}", file=fw)
+
+        logging.basicConfig(
+            format='%(levelname)s:%(filename)s:%(message)s', level=logging.INFO)
+        get_cache('af2_mmcif').max_size = 200
+        np.random.seed(1234)
+        random.seed(1234)
+
+        with csv_reader(tmp_file, dict_reader=True) as reader:
+            input_list = list(reader)
+
+        all_data = []
+        for index, input_row in enumerate(tqdm(input_list)):
+            print(f'Processing {input_row["pdb_id"]}')
+            data = process_one_pdb(
+                index, input_row, threshold=thr, pdb_mmcif_path=config.pdb_cache_path(),
+                pdb_ccd_path=config.pdb_ccd_path(),
+                min_heavy_atoms=8,
+            )
+            if data is not None:
+                all_data.append(data)
+
+        dump_data(all_data, f"gen_{out_split}", output_dir=Path(self.data_dir),
+                  fairseq_root=Path(parent(__file__)),
+                  pre_dicts_root=Path(parent(__file__)) / 'dict',
+                  max_len=1023)
+
     def reload_data(self, subset=None):
         if subset is None:
             dataset = self.args.gen_subset
