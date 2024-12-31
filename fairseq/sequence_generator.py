@@ -67,6 +67,7 @@ class SequenceGenerator(object):
         self.pad = tgt_dict.pad()
         self.unk = tgt_dict.unk()
         self.eos = tgt_dict.eos()
+        self.nspecial = tgt_dict.nspecial
         self.vocab_size = len(tgt_dict)
         self.beam_size = beam_size
         # the max beam size is the dictionary size - 1, since we never select pad
@@ -347,7 +348,10 @@ class SequenceGenerator(object):
                     attn_buf = attn.clone()
                     nonpad_idxs = src_tokens.ne(self.pad)
                 attn[:, :, step + 1].copy_(avg_attn_scores)
-
+            
+            if prefix_tokens is not None and step < prefix_tokens.size(1):
+                infmask = lprobs[:, self.nspecial:].eq(-math.inf)
+                lprobs[:, self.nspecial:][infmask] = lprobs[:, self.nspecial:][~infmask].min() -1e9 # never select special token
             scores = scores.type_as(lprobs)
             scores_buf = scores_buf.type_as(lprobs)
             eos_bbsz_idx = buffer('eos_bbsz_idx')
