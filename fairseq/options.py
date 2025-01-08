@@ -538,6 +538,8 @@ def add_generation_args(parser):
                        help='just score the reference translation')
     group.add_argument('--prefix-size', default=0, type=int, metavar='PS',
                        help='initialize generation by target prefix of given length')
+    group.add_argument('--max-seed', default=50, type=int,
+                       help='max seed we want to set')
     group.add_argument('--prefix-string', default=None, type=str, metavar='PS',
                        help='initialize generation by target prefix of the given string')
     group.add_argument('--tag-prefix-token', default=False, action="store_true",
