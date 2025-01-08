@@ -4,6 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 
 from functools import lru_cache
+from io import BytesIO
 import contextlib
 import os
 import shutil
@@ -14,6 +15,7 @@ import torch
 from tqdm import tqdm
 
 from . import FairseqDataset
+from fairseq.data.inmemorycache import CACHE
 
 
 def __best_fitting_dtype(vocab_size=None):
@@ -24,10 +26,12 @@ def __best_fitting_dtype(vocab_size=None):
 
 
 def get_available_dataset_impl():
-    return ['raw', 'lazy', 'cached', 'mmap']
+    return ['raw', 'lazy', 'cached', 'mmap', 'inmemorycache']
 
 
 def infer_dataset_impl(path):
+    if path.startswith('inmemorycache'):
+        return 'inmemorycache'
     if IndexedRawTextDataset.exists(path):
         return 'raw'
     elif IndexedDataset.exists(path):
@@ -60,6 +64,8 @@ def make_dataset(path, impl, fix_lua_indexing=False, dictionary=None):
         return IndexedCachedDataset(path, fix_lua_indexing=fix_lua_indexing)
     elif impl == 'mmap' and MMapIndexedDataset.exists(path):
         return MMapIndexedDataset(path)
+    elif impl == 'inmemorycache' and InMemCacheIndexedDataset.exists(path):
+        return InMemCacheIndexedDataset(path)
     return None
 
 
@@ -68,6 +74,8 @@ def dataset_exists(path, impl):
         return IndexedRawTextDataset.exists(path)
     elif impl == 'mmap':
         return MMapIndexedDataset.exists(path)
+    elif impl == 'inmemorycache':
+        return InMemCacheIndexedDataset.exists(path)
     else:
         return IndexedDataset.exists(path)
 
@@ -864,3 +872,155 @@ def mmap_idx_builder_env(prefix_path, dtype, dim=None):
         raise
     else:
         builder.finalize(index_file_path(prefix_path))
+
+
+class InMemCacheIndexedDataset(torch.utils.data.Dataset):
+    """New version of mmap indexed dataset, support dimension.
+
+    Notes
+    -----
+
+        1. If dim == None, will automatically convert data to int64 (same as original dataset).
+        2. If dim == (), will not convert data type instead.
+    """
+
+    class Index:
+        _HDR_MAGIC = b'MMIDIDX\x00\x00'
+
+        def __init__(self, path):
+            with BytesIO(CACHE[path]) as stream:
+                magic_test = stream.read(9)
+                assert self._HDR_MAGIC == magic_test, (
+                    'Index file doesn\'t match expected format. '
+                    'Make sure that --dataset-impl is configured properly.'
+                )
+                version = struct.unpack('<Q', stream.read(8))[0]
+
+                # 1 = original version (no dimension)
+                # 2 = new version (with dimension) (deprecated, keep for backward compatible)
+                # 3 = new version (with dimension, larger dimension sizes)
+                assert version in {1, 2, 3}
+
+                dtype_code, = struct.unpack('<B', stream.read(1))
+                self._dtype = dtypes[dtype_code]
+                self._dtype_size = self._dtype().itemsize
+
+                if version == 1:
+                    self._dim = None
+                elif version == 2:
+                    # Dimension format: N + d1 d2 ... dN (di in unsigned byte 'B')
+                    _ndim = struct.unpack('<B', stream.read(1))[0]
+                    self._dim = struct.unpack(f'<{_ndim}B', stream.read(_ndim))
+                else:
+                    assert version == 3
+                    # Dimension format: N + d1 d2 ... dN (di in signed long long 'Q')
+                    _ndim = struct.unpack('<B', stream.read(1))[0]
+                    self._dim = struct.unpack(f'<{_ndim}Q', stream.read(8 * _ndim))
+
+                self._len = struct.unpack('<Q', stream.read(8))[0]
+                offset = stream.tell()
+
+            # _warmup_mmap_file(path)
+
+            # self._bin_buffer_mmap = np.memmap(path, mode='r', order='C')
+            self._bin_buffer_mmap = np.frombuffer(CACHE[path], dtype=np.uint8)
+            self._bin_buffer = memoryview(self._bin_buffer_mmap)
+            self._sizes = np.frombuffer(self._bin_buffer, dtype=np.int32, count=self._len, offset=offset)
+            self._pointers = np.frombuffer(self._bin_buffer, dtype=np.int64, count=self._len,
+                                           offset=offset + self._sizes.nbytes)
+
+        def __del__(self):
+            # self._bin_buffer_mmap._mmap.close()
+            del self._bin_buffer_mmap
+
+        @property
+        def dtype(self):
+            return self._dtype
+
+        @property
+        def dim(self):
+            return self._dim
+
+        @property
+        def sizes(self):
+            return self._sizes
+
+        @lru_cache(maxsize=8)
+        def __getitem__(self, i):
+            return self._pointers[i], self._sizes[i]
+
+        def __len__(self):
+            return self._len
+
+    def __init__(self, path):
+        super().__init__()
+
+        self._path = None
+        self._dim = None
+        self._index = None
+        self._bin_buffer = None
+
+        self._do_init(path)
+
+    def __getstate__(self):
+        return self._path
+
+    def __setstate__(self, state):
+        self._do_init(state)
+
+    def _do_init(self, path):
+        self._path = path
+        self._index = self.Index(index_file_path(self._path))
+        self._dim = self._index.dim
+
+        # _warmup_mmap_file(data_file_path(self._path))
+        # self._bin_buffer_mmap = np.memmap(data_file_path(self._path), mode='r', order='C')
+        self._bin_buffer_mmap = np.frombuffer(CACHE[data_file_path(self._path)], dtype=np.uint8)
+        self._bin_buffer = memoryview(self._bin_buffer_mmap)
+
+    def __del__(self):
+        # self._bin_buffer_mmap._mmap.close()
+        del self._bin_buffer_mmap
+        del self._index
+
+    def __len__(self):
+        return len(self._index)
+
+        # _warmup_mmap_file(data_file_path(self._path))
+        # self._bin_buffer_mmap = np.memmap(data_file_path(self._path), mode='r', order='C')
+        self._bin_buffer_mmap = np.frombuffer(CACHE[data_file_path(self._path)], dtype=np.uint8)
+        self._bin_buffer = memoryview(self._bin_buffer_mmap)
+
+    @lru_cache(maxsize=8)
+    def __getitem__(self, i):
+        ptr, size = self._index[i]
+        np_array = np.frombuffer(self._bin_buffer, dtype=self._index.dtype, count=size, offset=ptr)
+        if self._dim is not None:
+            np_array = np_array.reshape(-1, *self._dim)
+        else:
+            # Keep the conversion of the original dataset.
+            if self._index.dtype != np.int64:
+                np_array = np_array.astype(np.int64)
+        arr2 = np_array.copy()
+        return torch.from_numpy(arr2)
+
+    @property
+    def sizes(self):
+        return self._index.sizes
+
+    @property
+    def dim(self):
+        return self._index.dim
+
+    @property
+    def dtype(self):
+        return self._index.dtype
+
+    @property
+    def supports_prefetch(self):
+        return False
+
+    @staticmethod
+    def exists(path):
+        return (index_file_path(path) in CACHE and data_file_path(path) in CACHE)
+

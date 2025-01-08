@@ -4,6 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 
 from collections import Counter
+from io import StringIO
 from multiprocessing import Pool
 import os
 
@@ -12,6 +13,7 @@ import torch
 from fairseq.tokenizer import tokenize_line
 from fairseq.binarizer import safe_readline
 from fairseq.data import data_utils
+from fairseq.data.inmemorycache import CACHE
 
 
 class Dictionary(object):
@@ -190,6 +192,10 @@ class Dictionary(object):
         Loads a pre-existing dictionary from a text file and adds its symbols
         to this instance.
         """
+        if isinstance(f, str) and f.startswith('inmemorycache'):
+            self.add_from_file(StringIO(CACHE[f].decode()))
+            return
+
         if isinstance(f, str):
             try:
                 if not ignore_utf_errors:

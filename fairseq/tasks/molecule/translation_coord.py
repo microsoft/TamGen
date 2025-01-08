@@ -46,7 +46,7 @@ def load_langpair_coord_dataset(data_path,
         src_coord = data_utils.load_indexed_dataset(
                     coord_filename,
                     None,
-                    dataset_impl='mmap',
+                    dataset_impl='mmap' if data_path != "inmemorycache" else 'inmemorycache',
                     default='mmap',
                 )
     else:
