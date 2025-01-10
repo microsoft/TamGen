@@ -34,6 +34,7 @@ class TamGenModelWrapper(mlflow.pyfunc.PythonModel):
             "--nbest", "20",
             "--max-tokens", "1024",
             "--seed", "1",
+            "--sample-beta", "1.0",
             "--use-src-coord",
             "--max-seed", "3",
             "--gen-vae",
@@ -43,10 +44,9 @@ class TamGenModelWrapper(mlflow.pyfunc.PythonModel):
         parser = options.get_generation_parser()
         args = options.parse_args_and_arch(parser, input_args)
 
-        with redirect_stdout(StringIO()) as f:
-            main(args)
+        output = main(args)
 
-        result = { "result": post_process(f.getvalue()) }
+        result = { "result": post_process(output) }
 
         return result
 
@@ -79,7 +79,7 @@ mlflow.pyfunc.save_model(
                     'torch==2.3.0+cu121',
                     '--find-links https://data.pyg.org/whl/torch-2.3.0+cu121.html',
                     'torch-cluster==1.6.3+pt23cu121',
-                    '-e git+https://github.com/microsoft/TamGen.git@yinxia/demo#egg=fairseq',
+                    '-e git+https://github.com/microsoft/TamGen.git@biran/deploy#egg=fairseq',
                 ],
             },
         ],

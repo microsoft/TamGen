@@ -7,6 +7,8 @@
 Translate pre-processed data with a trained model.
 """
 
+from io import StringIO
+
 import torch
 import numpy as np
 import random
@@ -129,7 +131,9 @@ def main(args):
 
         decoding_prefix_tensor = torch.tensor(decoding_prefix,dtype=torch.long)
 
-    for seed in list(range(1,50)) + [3407]:  
+    f = StringIO()
+
+    for seed in list(range(1, args.max_seed)) + [3407]:
         # 3407: https://arxiv.org/abs/2109.08203
         np.random.seed(seed)
         random.seed(seed)
@@ -181,9 +185,9 @@ def main(args):
 
                     if not args.quiet:
                         if src_dict is not None:
-                            print('S-{}\t{}'.format(sample_id, src_str))
+                            f.write('S-{}\t{}\n'.format(sample_id, src_str))
                         if has_target:
-                            print('T-{}\t{}'.format(sample_id, target_str))
+                            f.write('T-{}\t{}\n'.format(sample_id, target_str))
 
                     # Process top predictions
                     for j, hypo in enumerate(hypos[i][:args.nbest]):
@@ -200,8 +204,8 @@ def main(args):
                             print(hypo_str, file=dump_hyp_file)
 
                         if not args.quiet:
-                            print('H-{}\t{}\t{}'.format(sample_id, hypo['score'], hypo_str))
-                            print('P-{}\t{}'.format(
+                            f.write('H-{}\t{}\t{}\n'.format(sample_id, hypo['score'], hypo_str))
+                            f.write('P-{}\t{}\n'.format(
                                 sample_id,
                                 ' '.join(map(
                                     lambda x: '{:.4f}'.format(x),
@@ -210,7 +214,7 @@ def main(args):
                             ))
 
                             if args.print_alignment:
-                                print('A-{}\t{}'.format(
+                                f.write('A-{}\t{}\n'.format(
                                     sample_id,
                                     ' '.join(map(lambda x: str(utils.item(x)), alignment))
                                 ))
@@ -235,7 +239,8 @@ def main(args):
         print('| Generate {} with beam={}: {}'.format(args.gen_subset, args.beam, scorer.result_string()))
     if dump_hyp_file is not None:
         print('| Hypos dumped to {}'.format(args.dump_hyp))
-    return scorer
+
+    return f.getvalue()
 
 
 def cli_main():
