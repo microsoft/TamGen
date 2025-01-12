@@ -219,10 +219,11 @@ def dock(
                 best_affinity = affinity
                 best_idx = i
 
-        shutil.copyfile(
-            str(Path(tmpdir) / f"ligand_{best_idx}.pdbqt"),
-            output_complex_path,
-        )
+        if best_idx is not None:
+            shutil.move(
+                str(Path(tmpdir) / f"ligand_{best_idx}.pdbqt"),
+                output_complex_path,
+            )
 
 def attempt_docking(pdb_id, ligand_id, chain_id, smiles, center, work_dir, n_conf):
     output_pdbqt = work_dir + f'/{ligand_id}_{chain_id}.pdbqt'
