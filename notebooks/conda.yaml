@@ -1,0 +1,27 @@
+channels:
+- conda-forge
+dependencies:
+- python=3.9
+- pip<=24.2
+- git
+- openbabel==3.1.1
+- pip:
+  - biopython==1.84
+  - dm-tree==0.1.8
+  - editdistance==0.8.1
+  - fy-common-ext==0.1.0
+  - meeko==0.1.dev3
+  - nglview==3.1.4
+  - numpy==1.26.4
+  - pdb2pqr==3.6.2
+  - rdkit==2024.3.1
+  - requests==2.32.3
+  - scipy==1.13.1
+  - --find-links https://download.pytorch.org/whl/torch_stable.html
+  - torch==2.3.0+cu121
+  - --find-links https://data.pyg.org/whl/torch-2.3.0+cu121.html
+  - torch-cluster==1.6.3+pt23cu121
+  - vina==1.2.2
+  - git+https://github.com/Valdes-Tresanco-MS/AutoDockTools_py3
+  - -e git+https://github.com/microsoft/TamGen.git@biran/deploy#egg=fairseq
+name: tamgen-demo-env
