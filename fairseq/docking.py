@@ -1,6 +1,5 @@
 import contextlib
 import os
-import shutil
 import subprocess
 import tempfile
 import threading
@@ -9,7 +8,7 @@ from typing import Optional, Tuple
 
 import AutoDockTools
 import numpy as np
-from meeko import MoleculePreparation, obutils
+from meeko import MoleculePreparation
 from openbabel import pybel
 from rdkit import Chem
 from rdkit.Chem import AllChem
@@ -88,7 +87,7 @@ class PrepLig(object):
 
     def addH(self, polaronly=False, correctforph=True, PH=7):
         self.ob_mol.OBMol.AddHydrogens(polaronly, correctforph, PH)
-        obutils.writeMolecule(self.ob_mol.OBMol, "tmp_h.sdf")
+        # obutils.writeMolecule(self.ob_mol.OBMol, "tmp_h.sdf")
 
     def gen_conf(self, seed=0):
         sdf_block = self.ob_mol.write("sdf")
@@ -99,7 +98,7 @@ class PrepLig(object):
         except:
             rdkit_mol.Compute2DCoords()
         self.ob_mol = pybel.readstring("sdf", Chem.MolToMolBlock(rdkit_mol))
-        obutils.writeMolecule(self.ob_mol.OBMol, "conf_h.sdf")
+        # obutils.writeMolecule(self.ob_mol.OBMol, "conf_h.sdf")
 
     def get_pdbqt(self, lig_pdbqt):
         with open("/dev/null", "w") as null:
@@ -183,6 +182,7 @@ def dock(
     center,
     output_complex_path,
     num_ligand_confs,
+    timeout,
 ):
     """Dock a ligand to a receptor."""
 
@@ -205,36 +205,38 @@ def dock(
             lig.get_pdbqt(Path(tmpdir) / f"cand_{i}.pdbqt")
 
             # dock
-            affinity = dock_software.query_box(
-                Path(tmpdir) / "prot.pdbqt",
-                Path(tmpdir) / f"cand_{i}.pdbqt",
-                center,
-                box,
-                output_complex_path=Path(tmpdir) / f"ligand_{i}.pdbqt",
-                score_only=False,
-                timeout=30,
-            )
+            try:
+                affinity = dock_software.query_box(
+                    Path(tmpdir) / "prot.pdbqt",
+                    Path(tmpdir) / f"cand_{i}.pdbqt",
+                    center,
+                    box,
+                    output_complex_path=Path(output_complex_path) / f"ligand_{i}.pdbqt",
+                    score_only=False,
+                    timeout=timeout,
+                )
 
-            if affinity < best_affinity:
-                best_affinity = affinity
-                best_idx = i
+                if affinity < best_affinity:
+                    best_affinity = affinity
+                    best_idx = i
+            except TimeoutError:
+                continue
 
-        if best_idx is not None:
-            shutil.move(
-                str(Path(tmpdir) / f"ligand_{best_idx}.pdbqt"),
-                output_complex_path,
-            )
+    return best_idx
 
-def attempt_docking(pdb_id, ligand_id, chain_id, smiles, center, work_dir, n_conf):
-    output_pdbqt = work_dir + f'/{ligand_id}_{chain_id}.pdbqt'
-    output_sdf = work_dir + f'/{ligand_id}_{chain_id}.sdf'
-    dock(
-        f'{work_dir}/{pdb_id}.receptor.pdb',
+
+def attempt_docking(pdb_id, ligand_id, chain_id, smiles, center, work_dir, n_conf=1, timeout=30):
+    idx = dock(
+        os.path.join(work_dir, f'{pdb_id}.receptor.pdb'),
         smiles,
         center,
-        output_complex_path=output_pdbqt,
+        output_complex_path=work_dir,
         num_ligand_confs=n_conf,
+        timeout=timeout,
     )
+
+    output_pdbqt = os.path.join(work_dir, f'ligand_{idx}.pdbqt')
+    output_sdf = os.path.join(work_dir, f'{ligand_id}_{chain_id}.sdf')
 
     subprocess.Popen(
         f"obabel -i pdbqt {output_pdbqt} -o sdf -O {output_sdf}",
